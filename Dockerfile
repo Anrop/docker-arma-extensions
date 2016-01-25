@@ -1,20 +1,28 @@
-#	GCCVERSION=$($HOST-g++ -E -dM $(mktemp --suffix=.h) | grep __VERSION__ | cut -d ' ' -f 3 | cut -d '"' -f 2) && \
-# TODO: Make a nicer way to get gcc version. But only major and minor
+FROM ubuntu:wily
 
-FROM rubicks/mingw
-
-ENV BOOST_DIR /tmp/boost_1_59_0/
+ENV BOOST_DIR /tmp/boost_1_59_0
 ENV GCCVERSION 4.2
-ENV MINGW_COMPILER i586-mingw32msvc-g++
-ENV PATH /usr/i586-mingw32msvc:$PATH
+ENV MINGW_COMPILER i686-w64-mingw32-g++
 
-RUN apt-get update && apt-get install -y libboost-all-dev gcc-multilib g++-multilib
+# Install dependencies
+RUN apt-get -y update && apt-get -y install \
+  bzip2 \
+  g++ \
+  gcc-multilib \
+  g++-multilib \
+  g++-mingw-w64-i686 \
+  make \ 
+  wget \
+  && apt-get clean && apt-get purge
+
+# Download boost library
 RUN wget -P /tmp/ http://downloads.sourceforge.net/project/boost/boost/1.59.0/boost_1_59_0.tar.bz2
 RUN tar -xf /tmp/boost_1_59_0.tar.bz2 -C /tmp/
 
 WORKDIR $BOOST_DIR
 
-RUN HOST=i586-mingw32msvc && \
+# Compile Windows library
+RUN HOST=i686-w64-mingw32 && \
 	echo "using gcc : $GCCVERSION : $HOST-g++ \
       : \
       <rc>$HOST-windres \
@@ -32,6 +40,8 @@ RUN ./b2 toolset=gcc target-os=windows variant=release \
 	--prefix=/usr/lib/boost stage
 
 RUN mv stage stage_windows
+
+# Compile Linux library
 RUN ./bootstrap.sh
 RUN ./b2 address-model=32 link=static \
 	--without-python --without-mpi \
